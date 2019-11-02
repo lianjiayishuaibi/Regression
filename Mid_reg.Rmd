@@ -1,0 +1,314 @@
+---
+title: "Midterm"
+author: "Jiayi Lian"
+date: "11/1/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(faraway)
+library(EnvStats)
+library(stats)
+library(olsrr)
+library(lawstat)
+library(lmtest)
+library(spaMM)
+```
+
+```{r}
+cancer<-read.table("~/Documents/Regression/24tpdataFall19_n189.txt", header = T)
+colnames(cancer)<-c("Y","X")
+plot(cancer$X,cancer$Y)
+
+# fit and see
+lmfit<-lm(Y~X, data = cancer)
+summary(lmfit)
+plot(cancer$X,cancer$Y)
+abline(a=coef(lmfit)[1],b=coef(lmfit)[2], col= "red")
+
+cook<-cooks.distance(lmfit)
+halfnorm(cook,3)
+
+#delete outlier and try again
+cancer<-(cancer[-32,])
+lmfit<-lm(Y~X, data = cancer)
+summary(lmfit)
+
+plot(fitted(lmfit), residuals(lmfit))
+qqnorm(residuals(lmfit))
+shapiro.test(residuals(lmfit))
+```
+
+```{r}
+# standardize and try again
+Y<-(cancer$Y-mean(cancer$Y))/sqrt(var(cancer$Y))
+X<-(cancer$X-mean(cancer$X))/sqrt(var(cancer$X))
+cancer_std<-data.frame(Y=Y,X=X)
+
+lmfit_std<-lm(Y~.-1 , data= cancer_std)
+summary(lmfit_std)
+```
+```{r}
+# Do transformation
+boxcox(lmfit, plottit=T, lambda = seq(-2,2,by=0.1))
+Y_adj<-(cancer$Y^0.4-1)/0.4
+plot(X, Y_adj)
+
+
+cancer_ty<-data.frame(Y=Y_adj, X=X)
+lmfit_ty<-lm(Y~., data = cancer_ty)
+summary(lmfit_ty)
+plot(fitted(lmfit_ty),residuals(lmfit_ty))
+qqnorm(residuals(lmfit_ty))
+shapiro.test(residuals(lmfit_ty))
+```
+
+```{r}
+#wls
+weight=1/fitted(lmfit_ty)^2
+lmfit_wls<-lm(Y~., data = cancer_ty, w=weight)
+summary(lmfit_wls)
+plot(fitted(lmfit_wls), residuals(lmfit_wls))
+```
+
+```{r}
+#polinomial
+cancer_poly<-data.frame(Y=cancer$Y, X=cancer$X, X2= (cancer$X)^2, X3= (cancer$X)^3, X4 = (cancer$X)^4 ,X5=(cancer$X)^5, X6=(cancer$X)^6 ,X7=(cancer$X)^7 ,X8=(cancer$X)^8,X9=(cancer$X)^9,X10=(cancer$X)^10, X11=(cancer$X)^11, X12= log(cancer$X)) 
+cancer_poly2<-data.frame(Y=cancer$Y, X=X, X2= (X)^2, X3= (X)^3, X4 = (X)^4 ,X5=(X)^5, X6=(X)^6 ,X7=(X)^7 ,X8=(X)^8,X9=(X)^9,X10=(X)^10, X11=(X)^11, X12= log(cancer$X)) 
+
+lmfit_poly<-lm(Y~., data = cancer_poly)
+summary(lmfit_poly)
+lmfit_poly1<-lm(Y~X+X2+X3+X4+X5+X6+X7+X8+X9+X10, data = cancer_poly)
+summary(lmfit_poly1)
+
+lmfit_3<-lm(Y~X+X2+X3,data = cancer_poly)
+summary(lmfit_3)
+
+lmfit_poly2<-lm(Y~., data = cancer_poly2)
+summary(lmfit_poly2)
+lmfit_poly3<-lm(Y~X12, data = cancer_poly)
+summary(lmfit_poly3)
+
+
+all_posibla_model<-ols_step_all_possible(lmfit_poly)
+
+all_posibla_model[all_posibla_model$adjr %in% (sort(all_posibla_model$adjr,decreasing = T)[1:10]),]
+
+all_posibla_model[abs(all_posibla_model$n-all_posibla_model$cp) %in% (sort(abs(all_posibla_model$n-all_posibla_model$cp))[1:10]),]
+
+```
+
+```{r}
+# log transform X
+X<-log(cancer$X)
+cancer_poly3<-data.frame(Y=cancer$Y, X=X, X2= (X)^2, X3= (X)^3, X4 = (X)^4 ,X5=(X)^5, X6=(X)^6 ,X7=(X)^7 ,X8=(X)^8,X9=(X)^9,X10=(X)^10, X11=(X)^11) 
+lmfit_poly4<-lm(Y~., data = cancer_poly3)
+summary(lmfit_poly4)
+lmfit_poly5<-lm(Y~X+X2+X3+X4+X5+X6+X7+X8+X9+X10, data = cancer_poly3)
+summary(lmfit_poly5)
+
+all_posibla_model<-ols_step_all_possible(lmfit_poly4)
+
+all_posibla_model[all_posibla_model$adjr %in% (sort(all_posibla_model$adjr,decreasing = T)[1:10]),]
+
+all_posibla_model[abs(all_posibla_model$n-all_posibla_model$cp) %in% (sort(abs(all_posibla_model$n-all_posibla_model$cp))[1:10]),]
+all_posibla_model
+
+
+
+```
+
+```{r}
+# change the model to 
+Y1<-sqrt(cancer$Y)/X
+plot(X,Y1)
+cancer_over<-data.frame(Y=Y1,X=X)
+lmfit_over<-lm(Y~., data = cancer_over)
+summary(lmfit_over)
+
+
+```
+
+```{r}
+cancer_poly4<-data.frame(Y=Y1, X=X, X2= (X)^2, X3= (X)^3, X4 = (X)^4 ,X5=(X)^5, X6=(X)^6 ,X7=(X)^7 ,X8=(X)^8,X9=(X)^9, X10=(X)^10, X11=(X)^11) 
+lmfit_poly6<-lm(Y~., data = cancer_poly4)
+summary(lmfit_poly6)
+
+all_posibla_model<-ols_step_all_possible(lmfit_poly6)
+
+all_posibla_model[all_posibla_model$adjr %in% (sort(all_posibla_model$adjr,decreasing = T)[1:10]),]
+
+all_posibla_model[abs(all_posibla_model$n-all_posibla_model$cp) %in% (sort(abs(all_posibla_model$n-all_posibla_model$cp))[1:10]),]
+all_posibla_model
+
+lmfit_poly7<-lm(Y~X+X3+X6+X10, data = cancer_poly4)
+summary(lmfit_poly7)
+
+plot(fitted(lmfit_poly7),residuals(lmfit_poly7))
+plot(residuals(lmfit_poly7))
+
+```
+```{r}
+data.weight<-data.frame(Y=abs(residuals(lmfit_poly7)), X1= Y1, X2=Y1^2, X3=Y1^3, X4=Y1^4)
+lmfit.weight<-lm(Y~., data = data.weight)
+weight<- 1/abs(residuals(lmfit.weight))
+lmfit_wls1<-lm(Y~X+X3+X6+X10, data = cancer_poly4, weights =weight)
+summary(lmfit_wls1)
+
+
+
+plot(fitted(lmfit_wls1),residuals(lmfit_wls1))
+```
+
+
+
+```{r}
+Y2<-log(Y1)
+plot(X,Y2)
+cancer_complex<-data.frame(Y=Y2,X=X)
+lmfit_complex<-lm(Y~., data = cancer_complex)
+summary(lmfit_complex)
+plot(X,Y2)
+abline(a=coef(lmfit_complex)[1],b=coef(lmfit_complex)[2])
+
+plot(fitted(lmfit_complex),residuals(lmfit_complex))
+# Model assumption checking
+bptest(lmfit_complex)
+dwtest(lmfit_complex)
+qqnorm(residuals(lmfit_complex))
+shapiro.test(residuals(lmfit_complex))
+```
+
+```{r}
+
+cancer_poly5<-data.frame(Y=Y2, X=X, X2= (X)^2, X3= (X)^3, X4 = (X)^4 ,X5=(X)^5, X6=(X)^6 ,X7=(X)^7 ) 
+lmfit_poly8<-lm(Y~., data = cancer_poly5)
+summary(lmfit_poly8)
+
+all_posibla_model<-ols_step_all_possible(lmfit_poly8)
+
+all_posibla_model[all_posibla_model$adjr %in% (sort(all_posibla_model$adjr,decreasing = T)[1:10]),]
+
+all_posibla_model[abs(all_posibla_model$n+1-all_posibla_model$cp) %in% (sort(abs(all_posibla_model$n+1-all_posibla_model$cp))[1:10]),]
+```
+```{r}
+lmfit_com1<-lm(Y~X2+X4+X7, data = cancer_poly5)
+
+summary(lmfit_com1)
+plot(fitted(lmfit_com1),residuals(lmfit_com1))
+# Model assumption checking
+bptest(lmfit_com1)
+dwtest(lmfit_com1)
+qqnorm(residuals(lmfit_com1))
+shapiro.test(residuals(lmfit_com1))
+
+```
+```{r}
+cancer_com2<-data.frame(Y=Y2,X1=1/X)
+plot(1/X,Y2)
+lmfit_com2<-lm(Y~., data = cancer_com2)
+summary(lmfit_com2)
+plot(fitted(lmfit_com2),residuals(lmfit_com2))
+# Model assumption checking
+bptest(lmfit_com2)
+dwtest(lmfit_com2)
+qqnorm(residuals(lmfit_com2))
+shapiro.test(residuals(lmfit_com2))
+```
+
+```{r}
+cancer_poly6<-data.frame(Y=Y2, X=1/X, X2= 1/(X)^2, X3= 1/(X)^3, X4 = 1/(X)^4 ,X5=1/(X)^5, X6=1/(X)^6 ) 
+lmfit_poly9<-lm(Y~., data = cancer_poly6)
+summary(lmfit_poly9)
+
+all_posibla_model<-ols_step_all_possible(lmfit_poly9)
+
+all_posibla_model[all_posibla_model$adjr %in% (sort(all_posibla_model$adjr,decreasing = T)[1:10]),]
+
+all_posibla_model
+
+all_posibla_model[abs(all_posibla_model$n+1-all_posibla_model$cp) %in% (sort(abs(all_posibla_model$n+1-all_posibla_model$cp))[1:10]),]
+
+```
+```{r}
+lmfit_com2<-lm(Y~X2+X4+X7, data = cancer_poly6)
+
+summary(lmfit_com2)
+plot(fitted(lmfit_com1),residuals(lmfit_com2))
+# Model assumption checking
+bptest(lmfit_com2)
+dwtest(lmfit_com2)
+qqnorm(residuals(lmfit_com2))
+shapiro.test(residuals(lmfit_com2))
+
+```
+{r}
+
+···
+
+
+```{r}
+# X=sqrt(cancer$X)
+# cancer_com3<-data.frame(X= 1/X, X2= 1/(X)^2, X3= 1/(X)^3, X4 = 1/(X)^4 ,X5=1/(X)^5, X6=1/(X)^6 ,X7=1/(X)^7 , Y=cancer$Y)
+cancer_com3<-data.frame(X= X, X2= (X)^2, X3= (X)^3, X4 = (X)^4 ,X5=(X)^5, X6=(X)^6 ,X7=(X)^7 , Y=cancer$Y)
+lmfit_com3<-lm(Y~., data = cancer_com3)
+summary(lmfit_com3)
+all_posibla_model<-ols_step_all_possible(lmfit_com3)
+
+all_posibla_model[all_posibla_model$adjr %in% (sort(all_posibla_model$adjr,decreasing = T)[1:10]),]
+
+all_posibla_model
+
+all_posibla_model[abs(all_posibla_model$n+1-all_posibla_model$cp) %in% (sort(abs(all_posibla_model$n+1-all_posibla_model$cp))[1:10]),]
+
+```
+```{r}
+lmfit_com4<-lm(Y~X3+X5+X6+X7, data = cancer_com3)
+summary(lmfit_com4)
+plot(fitted(lmfit_com4),residuals(lmfit_com4))
+
+# Model assumption checking
+bptest(lmfit_com4)
+dwtest(lmfit_com4)
+qqnorm(residuals(lmfit_com4))
+shapiro.test(residuals(lmfit_com4))
+
+
+
+
+```
+```{r}
+#X<-(cancer$X-mean(cancer$X))/sqrt(var(cancer$X))
+Y3<-(cancer$Y)
+plot(Y3,log(cancer$X)*Y3^1.4)
+cancer_com4<-data.frame(Y=log(cancer$X),X1=Y3, X2=Y3^2, X3=Y3^3,X4=Y3^4, X5=Y3^5, X6=Y3^6, X7=Y3^7)
+# cancer_com4<-data.frame(Y=log(cancer$X),X1=Y3, X2=Y3^2, X3=Y3^3,X4=Y3^4 )
+# cancer_com4<-data.frame(Y=X,X1=1/Y3, X2=1/Y3^2, X3=1/Y3^3,X4=1/Y3^4, X5=1/Y3^5)
+lmfit_com5<-lm(Y~., data = cancer_com4)
+summary(lmfit_com5)
+# lmfit_com6<-lm(Y~X1+X2+X3, data = cancer_com4)
+# anova(lmfit_com6,lmfit_com5)
+
+all_posibla_model<-ols_step_all_possible(lmfit_com5)
+ols_step_best_subset(lmfit_com5)
+all_posibla_model[all_posibla_model$adjr %in% (sort(all_posibla_model$adjr,decreasing = T)[1:10]),]
+
+all_posibla_model
+
+all_posibla_model[abs(all_posibla_model$n+1-all_posibla_model$cp) %in% (sort(abs(all_posibla_model$n+1-all_posibla_model$cp))[1:10]),]
+
+ols_step_both_p(lmfit_com5)
+```
+```{r}
+lmfit_xy<-lm(Y~X1+X3+X4+X5+X6, data =cancer_com4) 
+summary(lmfit_xy)
+
+plot(fitted(lmfit_xy),residuals(lmfit_xy))
+
+# Model assumption checking
+bptest(lmfit_xy)
+dwtest(lmfit_xy)
+qqnorm(residuals(lmfit_xy))
+shapiro.test(residuals(lmfit_xy))
+```
+
